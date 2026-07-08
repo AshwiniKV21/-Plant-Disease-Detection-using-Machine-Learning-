@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}LeafCare AI — Home{% endblock %}
+
+{% block extra_css %}
+<style>
+  .hero {
+    background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+    color: #fff; border-radius: 20px; padding: 50px 40px; margin-bottom: 30px;
+  }
+  .stat-card { text-align: center; padding: 20px; border-radius: 16px; }
+  .stat-number { font-size: 2.2rem; font-weight: 700; }
+
+  .upload-zone {
+    border: 3px dashed #95d5b2; border-radius: 20px; padding: 50px 20px;
+    text-align: center; background: #fff; cursor: pointer; transition: all .25s;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #2d6a4f; background: #f1faf4; }
+  .upload-zone i { font-size: 3.5rem; color: #95d5b2; margin-bottom: 12px; }
+
+  #previewImg {
+    max-width: 100%; max-height: 320px; border-radius: 16px; margin-top: 16px;
+    display: none; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  }
+  .form-section { background: #fff; border-radius: 20px; padding: 36px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+  .btn-predict {
+    background: linear-gradient(135deg, #2d6a4f, #1b4332);
+    border: none; border-radius: 12px; padding: 14px 40px;
+    font-size: 1.1rem; font-weight: 600; color: #fff;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(45,106,79,.4); color:#fff; }
+  .btn-predict:disabled { opacity: .5; transform: none; box-shadow: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <h1 class="fw-bold mb-2"><i class="fas fa-seedling me-3"></i>LeafCare AI</h1>
+      <p class="lead mb-0">Upload a photo of a plant leaf to instantly detect diseases using deep learning.</p>
+    </div>
+    <div class="col-md-4 text-center mt-3 mt-md-0">
+      <div class="row g-3">
+        <div class="col-4">
+          <div class="stat-card bg-white bg-opacity-10 rounded-3">
+            <div class="stat-number text-warning">{{ total }}</div>
+            <small>Total Scans</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card bg-white bg-opacity-10 rounded-3">
+            <div class="stat-number" style="color:#95d5b2;">{{ healthy }}</div>
+            <small>Healthy</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card bg-white bg-opacity-10 rounded-3">
+            <div class="stat-number text-danger">{{ diseased }}</div>
+            <small>Diseased</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not model_loaded %}
+<div class="alert alert-warning">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  <strong>Model not loaded.</strong> Run <code>python train_model.py</code> first, then restart the server.
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>{{ error }}</div>
+{% endif %}
+
+<!-- Upload Form -->
+<div class="form-section">
+  <h3 class="fw-bold mb-4" style="color:#1b4332;"><i class="fas fa-camera me-2"></i>Scan a Leaf</h3>
+
+  <form action="/predict/" method="POST" enctype="multipart/form-data" id="uploadForm">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Plant Name (optional)</label>
+      <input type="text" name="plant_name" class="form-control" placeholder="e.g. Tomato, Potato, Apple">
+    </div>
+
+    <div class="upload-zone" id="dropZone">
+      <input type="file" name="leaf_image" id="fileInput" accept="image/*" hidden required>
+      <i class="fas fa-cloud-upload-alt"></i>
+      <h5>Click or drag a leaf image here</h5>
+      <p class="text-muted mb-0">JPG, PNG — up to 10MB</p>
+      <img id="previewImg" alt="Preview">
+    </div>
+
+    <div class="text-center mt-4">
+      <button type="submit" class="btn btn-predict" id="submitBtn" disabled>
+        <i class="fas fa-search me-2"></i>Detect Disease
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const dropZone   = document.getElementById('dropZone');
+  const fileInput  = document.getElementById('fileInput');
+  const previewImg = document.getElementById('previewImg');
+  const submitBtn  = document.getElementById('submitBtn');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  ['dragover', 'dragleave', 'drop'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.toggle('dragover', evt === 'dragover');
+    });
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      showPreview(fileInput.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) showPreview(fileInput.files[0]);
+  });
+
+  function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      submitBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+</script>
+{% endblock %}
